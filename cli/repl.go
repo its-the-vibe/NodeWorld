@@ -17,6 +17,18 @@ func printJSON(w io.Writer, value any) error {
 	return enc.Encode(value)
 }
 
+var commandHelp = []struct {
+	name, usage, description, details string
+}{
+	{"step", "step [n]", "Advance the simulation by n days.", "n must be a positive integer and defaults to 1. Stepping while playing does not change the playback state."},
+	{"play", "play [days_per_sec]", "Start playback at the specified speed.", "The speed defaults to the current speed and must be between 0.001 and 1000 days per second."},
+	{"pause", "pause", "Pause the simulation.", ""},
+	{"status", "status", "Display the current simulation status.", ""},
+	{"node", "node <id>", "Display node information and outgoing links.", "id is the ID of an existing node."},
+	{"quit", "quit", "Exit the REPL.", ""},
+	{"help", "help [command]", "Display help for REPL commands.", "Specify a command name to see its detailed usage."},
+}
+
 func Run(s *sim.Simulation, in io.Reader, out io.Writer) error {
 	scanner := bufio.NewScanner(in)
 	for {
@@ -30,6 +42,31 @@ func Run(s *sim.Simulation, in io.Reader, out io.Writer) error {
 		}
 		var err error
 		switch args[0] {
+		case "help":
+			if len(args) > 2 {
+				err = fmt.Errorf("usage: help [command]")
+			} else if len(args) == 1 {
+				for _, command := range commandHelp {
+					if _, err = fmt.Fprintf(out, "%s - %s\n", command.usage, command.description); err != nil {
+						break
+					}
+				}
+			} else {
+				found := false
+				for _, command := range commandHelp {
+					if command.name == args[1] {
+						_, err = fmt.Fprintf(out, "Usage: %s\n%s\n", command.usage, command.description)
+						if err == nil && command.details != "" {
+							_, err = fmt.Fprintln(out, command.details)
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					err = fmt.Errorf("unknown command %q; use help to list available commands", args[1])
+				}
+			}
 		case "quit":
 			if len(args) == 1 {
 				return nil
