@@ -1,6 +1,6 @@
 # NodeWorld
 
-NodeWorld is a local actor-based timed flow graph simulator. It requires Go 1.23 or later.
+NodeWorld is a local actor-based timed flow graph simulator. It requires Go 1.27.4 or later.
 
 ```sh
 go run . --config examples/sample.yaml
@@ -26,4 +26,5 @@ With `--ws`, connect to `/ws` using a WebSocket client. The server runs for the 
 
 `step` defaults to one day and accepts up to 10000 days per command. Invalid commands and overflow produce an `error` message. Slow clients are disconnected if their event buffer remains full for one second; reconnect for a fresh snapshot. WebSocket connections use same-origin verification by default. There is no authentication, so bind to localhost unless access is restricted by a trusted network or proxy.
 
-Run tests with `go test ./...`.
+Run `make build`, `make test`, `make vet`, or `make fmt` for common development tasks.
+Use `make run ARGS="--days 30"` to pass arguments to the simulator.

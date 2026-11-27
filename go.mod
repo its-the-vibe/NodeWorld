@@ -1,6 +1,6 @@
 module github.com/its-the-vibe/NodeWorld
 
-go 1.23
+go 1.27.4
 
 require (
 	github.com/anthdm/hollywood v1.0.5

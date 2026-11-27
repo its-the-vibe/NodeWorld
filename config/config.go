@@ -61,6 +61,26 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 
+func validateMetadata(value any) error {
+	switch value := value.(type) {
+	case map[any]any:
+		return fmt.Errorf("mapping keys must be strings")
+	case map[string]any:
+		for _, v := range value {
+			if err := validateMetadata(v); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for _, v := range value {
+			if err := validateMetadata(v); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (c Config) Validate() error {
 	if c.Simulation.CycleDays < 1 {
 		return fmt.Errorf("cycle_days must be positive")
@@ -74,6 +94,9 @@ func (c Config) Validate() error {
 			return fmt.Errorf("node IDs must be nonempty and unique: %q", n.ID)
 		}
 		if _, err := json.Marshal(n.Meta); err != nil {
+			return fmt.Errorf("node %q metadata must be JSON-compatible: %w", n.ID, err)
+		}
+		if err := validateMetadata(n.Meta); err != nil {
 			return fmt.Errorf("node %q metadata must be JSON-compatible: %w", n.ID, err)
 		}
 		ids[n.ID] = true

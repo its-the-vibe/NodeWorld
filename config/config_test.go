@@ -28,11 +28,24 @@ func TestLoad(t *testing.T) {
 }
 
 func TestRejectNonJSONMetadata(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("nodes:\n  - id: a\n    meta:\n      nested: {1: one}\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Load(path); err == nil {
-		t.Fatal("expected non-JSON metadata to be rejected")
+	for _, tc := range []struct {
+		name    string
+		meta    string
+		wantErr bool
+	}{
+		{"numeric key", "nested: {1: one}", true},
+		{"numeric key in list", "nested: [{items: [{1: one}]}]", true},
+		{"string keys in list", "nested: [{items: [{one: 1}]}]", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte("nodes:\n  - id: a\n    meta:\n      "+tc.meta+"\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Load(path)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Load() error = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
 	}
 }
