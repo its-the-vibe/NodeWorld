@@ -1,0 +1,29 @@
+simulation:
+  cycle_days: 30
+  days_per_sec: 2
+nodes:
+  - {id: alpha, label: Alpha, kind: source, level: 100, meta: {x: 0, y: 0}}
+  - {id: beta, label: Beta, kind: relay, level: 20}
+  - {id: gamma, label: Gamma, kind: relay, level: 15}
+  - {id: delta, label: Delta, kind: sink, level: 0}
+  - {id: epsilon, label: Epsilon, kind: relay, level: 8}
+  - {id: zeta, label: Zeta, kind: sink, level: 0}
+  - {id: eta, label: Eta, kind: source, level: 30}
+  - {id: theta, label: Theta, kind: relay, level: 10}
+  - {id: iota, label: Iota, kind: sink, level: 0}
+  - {id: kappa, label: Kappa, kind: relay, level: 5}
+  - {id: lambda, label: Lambda, kind: sink, level: 0}
+  - {id: mu, label: Mu, kind: sink, level: 0}
+links:
+  - {from: alpha, to: beta, magnitude: 10, schedule_day: 1}
+  - {from: alpha, to: gamma, magnitude: 8, schedule_day: 2}
+  - {from: beta, to: delta, magnitude: 5, schedule_day: 3}
+  - {from: beta, to: epsilon, magnitude: 4, schedule_day: 4}
+  - {from: gamma, to: zeta, magnitude: 6, schedule_day: 5}
+  - {from: eta, to: theta, magnitude: 7, schedule_day: 6}
+  - {from: theta, to: iota, magnitude: 3, schedule_day: 7}
+  - {from: epsilon, to: kappa, magnitude: 2, schedule_day: 8}
+  - {from: kappa, to: lambda, magnitude: 4, schedule_day: 9}
+  - {from: theta, to: mu, magnitude: 5, schedule_day: 10}
+  - {from: gamma, to: epsilon, magnitude: 3, schedule_day: 15}
+  - {from: eta, to: alpha, magnitude: 2, schedule_day: 30}
