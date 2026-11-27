@@ -3,11 +3,14 @@ module github.com/its-the-vibe/NodeWorld
 go 1.23
 
 require (
+	github.com/anthdm/hollywood v1.0.5
+	github.com/coder/websocket v1.8.15
+	gopkg.in/yaml.v3 v3.0.1
+)
+
+require (
 	github.com/DataDog/gostackparse v0.7.0 // indirect
-	github.com/anthdm/hollywood v1.0.5 // indirect
-	github.com/coder/websocket v1.8.15 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

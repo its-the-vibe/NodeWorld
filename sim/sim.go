@@ -24,7 +24,7 @@ type Event struct {
 	SimDay      int       `json:"sim_day,omitempty"`
 	From        string    `json:"from,omitempty"`
 	To          string    `json:"to,omitempty"`
-	Amount      int64     `json:"amount,omitempty"`
+	Amount      *int64    `json:"amount,omitempty"`
 	SourceLevel *int64    `json:"source_level,omitempty"`
 	TargetLevel *int64    `json:"target_level,omitempty"`
 }
@@ -125,7 +125,8 @@ func (c *coordinator) advance() []Event {
 		for _, l := range <-reply {
 			source := c.node(l.From, -l.Magnitude)
 			target := c.node(l.To, l.Magnitude)
-			e := Event{Type: "flow_event", SimDay: c.day, From: l.From, To: l.To, Amount: l.Magnitude, SourceLevel: &source.Level, TargetLevel: &target.Level}
+			amount := l.Magnitude
+			e := Event{Type: "flow_event", SimDay: c.day, From: l.From, To: l.To, Amount: &amount, SourceLevel: &source.Level, TargetLevel: &target.Level}
 			events = append(events, e)
 			c.publish(e)
 		}
