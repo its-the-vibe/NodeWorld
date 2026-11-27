@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -12,6 +13,35 @@ func testConfig() config.Config {
 		Nodes:      []config.Node{{ID: "a", Level: 3}, {ID: "b", Level: 1}},
 		Links:      []config.Link{{From: "a", To: "b", Magnitude: 7, ScheduleDay: 2}},
 		Simulation: config.Settings{CycleDays: 2, DaysPerSec: 1},
+	}
+}
+
+func TestOverflowLeavesTransferUnapplied(t *testing.T) {
+	cfg := testConfig()
+	cfg.Nodes[1].Level = math.MaxInt64
+	cfg.Links[0].ScheduleDay = 1
+	s, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	snapshot, _, err := s.Step(1)
+	if err == nil || snapshot.Nodes[0].Level != 3 || snapshot.Nodes[1].Level != math.MaxInt64 || snapshot.SimDay != 1 {
+		t.Fatalf("overflow: %+v %v", snapshot, err)
+	}
+}
+
+func TestSelfTransfer(t *testing.T) {
+	cfg := testConfig()
+	cfg.Links = []config.Link{{From: "a", To: "a", Magnitude: 7, ScheduleDay: 1}}
+	s, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	snapshot, events, err := s.Step(1)
+	if err != nil || snapshot.Nodes[0].Level != 3 || *events[1].SourceLevel != -4 || *events[1].TargetLevel != 3 {
+		t.Fatalf("self transfer: %+v %+v %v", snapshot, events, err)
 	}
 }
 

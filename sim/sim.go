@@ -2,6 +2,7 @@ package sim
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/anthdm/hollywood/actor"
@@ -27,6 +28,7 @@ type Event struct {
 	Amount      *int64    `json:"amount,omitempty"`
 	SourceLevel *int64    `json:"source_level,omitempty"`
 	TargetLevel *int64    `json:"target_level,omitempty"`
+	Message     string    `json:"message,omitempty"`
 }
 
 type nodeRequest struct {
@@ -108,13 +110,19 @@ func (c *coordinator) publish(e Event) {
 		select {
 		case ch <- e:
 		default:
-			close(ch)
-			delete(c.subs, ch)
+			timer := time.NewTimer(time.Second)
+			select {
+			case ch <- e:
+				timer.Stop()
+			case <-timer.C:
+				close(ch)
+				delete(c.subs, ch)
+			}
 		}
 	}
 }
 
-func (c *coordinator) advance() []Event {
+func (c *coordinator) advance() ([]Event, error) {
 	c.day = c.day%c.cycle + 1
 	c.elapsed++
 	events := []Event{{Type: "day_tick", SimDay: c.day}}
@@ -123,6 +131,17 @@ func (c *coordinator) advance() []Event {
 		reply := make(chan []config.Link, 1)
 		c.engine.Send(c.nodes[id], scheduledRequest{day: c.day, reply: reply})
 		for _, l := range <-reply {
+			sourceBefore := c.node(l.From, 0).Level
+			targetBefore := sourceBefore
+			if l.From != l.To {
+				targetBefore = c.node(l.To, 0).Level
+			}
+			if sourceBefore < math.MinInt64+l.Magnitude ||
+				(l.From != l.To && targetBefore > math.MaxInt64-l.Magnitude) {
+				err := fmt.Errorf("level overflow on link %q -> %q at day %d", l.From, l.To, c.day)
+				c.publish(Event{Type: "error", Message: err.Error()})
+				return events, err
+			}
 			source := c.node(l.From, -l.Magnitude)
 			target := c.node(l.To, l.Magnitude)
 			amount := l.Magnitude
@@ -131,7 +150,7 @@ func (c *coordinator) advance() []Event {
 			c.publish(e)
 		}
 	}
-	return events
+	return events, nil
 }
 
 func (c *coordinator) schedule(pid *actor.PID) {
@@ -151,7 +170,9 @@ func (c *coordinator) Receive(ctx *actor.Context) {
 	switch m := ctx.Message().(type) {
 	case tick:
 		if c.running && m.generation == c.generation {
-			c.advance()
+			if _, err := c.advance(); err != nil {
+				c.running = false
+			}
 			c.schedule(ctx.PID())
 		}
 	case command:
@@ -172,7 +193,14 @@ func (c *coordinator) Receive(ctx *actor.Context) {
 				r.err = fmt.Errorf("step count must be positive")
 			} else {
 				for i := 0; i < m.n; i++ {
-					r.events = append(r.events, c.advance()...)
+					var events []Event
+					events, r.err = c.advance()
+					r.events = append(r.events, events...)
+					if r.err != nil {
+						c.running = false
+						c.schedule(ctx.PID())
+						break
+					}
 				}
 				r.snapshot = c.snapshot()
 			}
@@ -190,6 +218,9 @@ func (c *coordinator) Receive(ctx *actor.Context) {
 				c.speed = m.speed
 				c.schedule(ctx.PID())
 			}
+		case "resume":
+			c.running = true
+			c.schedule(ctx.PID())
 		case "pause":
 			c.running = false
 			c.schedule(ctx.PID())
@@ -253,7 +284,8 @@ func (s *Simulation) Play(speed float64) error {
 func (s *Simulation) SetSpeed(speed float64) error {
 	return s.call(command{action: "speed", speed: speed}).err
 }
-func (s *Simulation) Pause() { s.call(command{action: "pause"}) }
+func (s *Simulation) Resume() { s.call(command{action: "resume"}) }
+func (s *Simulation) Pause()  { s.call(command{action: "pause"}) }
 func (s *Simulation) Subscribe() (Snapshot, chan Event) {
 	ch := make(chan Event, 256)
 	r := s.call(command{action: "subscribe", sub: ch})

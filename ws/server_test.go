@@ -22,6 +22,7 @@ func TestWebSocketSnapshotAndStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	defer s.Close()
 	handler := New(s)
 	server := httptest.NewServer(handler)
@@ -59,5 +60,36 @@ func TestWebSocketSnapshotAndStep(t *testing.T) {
 	}
 	if err := wsjson.Write(ctx, conn, map[string]any{"type": "pause"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLargeStepStreamsAllTicks(t *testing.T) {
+	s, err := sim.New(config.Config{Simulation: config.Settings{CycleDays: 30, DaysPerSec: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	handler := New(s)
+	server := httptest.NewServer(handler)
+	defer handler.Close()
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http")+"/ws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+	var event sim.Event
+	if err := wsjson.Read(ctx, conn, &event); err != nil {
+		t.Fatal(err)
+	}
+	if err := wsjson.Write(ctx, conn, map[string]any{"type": "step", "days": 10000}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 10000; i++ {
+		if err := wsjson.Read(ctx, conn, &event); err != nil || event.Type != "day_tick" || event.SimDay != i%30+1 {
+			t.Fatalf("tick %d: %+v %v", i, event, err)
+		}
 	}
 }

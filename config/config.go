@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -71,6 +72,9 @@ func (c Config) Validate() error {
 	for _, n := range c.Nodes {
 		if n.ID == "" || ids[n.ID] {
 			return fmt.Errorf("node IDs must be nonempty and unique: %q", n.ID)
+		}
+		if _, err := json.Marshal(n.Meta); err != nil {
+			return fmt.Errorf("node %q metadata must be JSON-compatible: %w", n.ID, err)
 		}
 		ids[n.ID] = true
 	}

@@ -93,7 +93,7 @@ func New(s *sim.Simulation) *Server {
 				case "pause":
 					s.Pause()
 				case "resume":
-					err = s.Play(s.Snapshot().DaysPerSec)
+					s.Resume()
 				case "set_speed":
 					err = s.SetSpeed(command.DaysPerSec)
 				case "step":
@@ -103,7 +103,8 @@ func New(s *sim.Simulation) *Server {
 					if command.Days < 1 || command.Days > 10000 {
 						err = fmt.Errorf("days must be between 1 and 10000")
 					} else {
-						_, _, err = s.Step(command.Days)
+						// Simulation errors are broadcast to all subscribers.
+						_, _, _ = s.Step(command.Days)
 					}
 				default:
 					err = fmt.Errorf("unknown command %q", command.Type)

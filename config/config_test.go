@@ -12,15 +12,27 @@ func TestLoad(t *testing.T) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
+
 	c, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if c.Simulation.CycleDays != 28 || c.Nodes[0].Meta["x"] != 10 || c.Links[0].ScheduleDay != 28 {
 		t.Fatalf("unexpected config: %+v", c)
 	}
 	c.Links[0].To = "missing"
 	if err := c.Validate(); err == nil {
 		t.Fatal("expected invalid link to be rejected")
+	}
+}
+
+func TestRejectNonJSONMetadata(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("nodes:\n  - id: a\n    meta:\n      nested: {1: one}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected non-JSON metadata to be rejected")
 	}
 }
