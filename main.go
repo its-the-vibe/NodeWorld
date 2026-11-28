@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/its-the-vibe/NodeWorld/cli"
@@ -20,12 +23,19 @@ func run() error {
 	days := flag.Int("days", 0, "run N days headlessly (0 starts the REPL)")
 	output := flag.String("output", "", "write headless JSON output to this file")
 	address := flag.String("ws", "", "WebSocket listen address, e.g. localhost:8080")
+	serve := flag.Bool("serve", false, "run a persistent WebSocket server until interrupted (requires --ws)")
 	flag.Parse()
 	if *days < 0 {
 		return fmt.Errorf("days must not be negative")
 	}
 	if *output != "" && *days == 0 {
 		return fmt.Errorf("output requires --days")
+	}
+	if *serve && *address == "" {
+		return fmt.Errorf("serve requires --ws")
+	}
+	if *serve && *days != 0 {
+		return fmt.Errorf("serve cannot be combined with --days")
 	}
 	cfg, err := config.Load(*configPath)
 	if err != nil {
@@ -51,6 +61,12 @@ func run() error {
 			}
 		}()
 		fmt.Fprintln(os.Stderr, "WebSocket listening on", listener.Addr())
+	}
+	if *serve {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		<-ctx.Done()
+		return nil
 	}
 	if *days == 0 {
 		return cli.Run(s, os.Stdin, os.Stdout)
