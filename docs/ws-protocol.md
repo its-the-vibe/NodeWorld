@@ -110,10 +110,12 @@ configuration order and then outgoing link configuration order.
 {"type":"error","message":"days must be between 1 and 10000"}
 ```
 
-`message` is a string. Malformed JSON, invalid field types, unknown commands,
-and invalid command parameters produce an error for the sending client. Error
-text from JSON decoding depends on the input. A transfer that would overflow an
-int64 level broadcasts an error such as:
+`message` is a string. Malformed JSON, incompatible non-null field types,
+unknown commands, and invalid command parameters produce an error for the
+sending client. JSON `null` for a scalar command field leaves the field
+unchanged (normally its zero value) instead of producing a type error. Error
+text from JSON decoding depends on the input. A transfer that would overflow
+an int64 level broadcasts an error such as:
 
 ```json
 {"type":"error","message":"level overflow on link \"a\" -> \"b\" at day 1"}
@@ -152,8 +154,8 @@ Starts timed playback at the current speed.
 {"type":"step","days":2}
 ```
 
-Advances the simulation by `days` (an integer from 1 through 10000). Omitted or
-zero `days` defaults to 1; negative values or values above 10000 produce
+Advances the simulation by `days` (an integer from 1 through 10000). Omitted,
+null, or zero `days` defaults to 1; negative values or values above 10000 produce
 `{"type":"error","message":"days must be between 1 and 10000"}`. Stepping
 also works during playback and does not change its running state unless a
 simulation error occurs.
@@ -166,7 +168,7 @@ simulation error occurs.
 
 Sets the playback speed without changing whether playback is running.
 `days_per_sec` must be a finite JSON number between 0.001 and 1000 inclusive.
-An omitted or zero value is invalid. Invalid speeds produce
+An omitted, null, or zero value is invalid. Invalid speeds produce
 `{"type":"error","message":"days_per_sec must be between 0.001 and 1000"}`.
 
 ### `reset`
