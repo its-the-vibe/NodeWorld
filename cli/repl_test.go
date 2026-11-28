@@ -35,13 +35,14 @@ func TestREPLHelp(t *testing.T) {
 			name:  "all commands",
 			input: "help\nquit\n",
 			want: []string{
-				"step [n] - Advance", "play [days_per_sec] - Start", "pause - Pause",
+				"step [n] - Advance", "play [days_per_sec] - Start", "pause - Pause", "reset - Reset",
 				"status - Display", "node <id> - Display", "quit - Exit", "help [command] - Display",
 			},
 		},
 		{"step details", "help step\nquit\n", []string{"Usage: step [n]", "positive integer", "defaults to 1", "while playing"}},
 		{"play details", "help play\nquit\n", []string{"Usage: play [days_per_sec]", "current speed", "0.001 and 1000"}},
 		{"pause details", "help pause\nquit\n", []string{"Usage: pause", "Pause the simulation"}},
+		{"reset details", "help reset\nquit\n", []string{"Usage: reset", "day 0", "initial values", "speed is preserved"}},
 		{"status details", "help status\nquit\n", []string{"Usage: status", "current simulation status"}},
 		{"node details", "help node\nquit\n", []string{"Usage: node <id>", "outgoing links", "existing node"}},
 		{"quit details", "help quit\nquit\n", []string{"Usage: quit", "Exit the REPL"}},
@@ -49,6 +50,7 @@ func TestREPLHelp(t *testing.T) {
 		{"unknown command", "help missing\nstatus\nquit\n", []string{`error: unknown command "missing"`, "use help", `"sim_day": 0`}},
 		{"too many arguments", "help step extra\nstatus\nquit\n", []string{"error: usage: help [command]", `"sim_day": 0`}},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s, err := sim.New(config.Config{Nodes: []config.Node{{ID: "a"}}, Simulation: config.Settings{CycleDays: 30, DaysPerSec: 1}})
@@ -66,5 +68,30 @@ func TestREPLHelp(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestREPLReset(t *testing.T) {
+	s, err := sim.New(config.Config{
+		Nodes:      []config.Node{{ID: "a", Level: 5}, {ID: "b", Level: 1}},
+		Links:      []config.Link{{From: "a", To: "b", Magnitude: 2, ScheduleDay: 1}},
+		Simulation: config.Settings{CycleDays: 2, DaysPerSec: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var out bytes.Buffer
+	if err := Run(s, strings.NewReader("step\nreset extra\nstatus\nplay 2\nreset\nquit\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`error: usage: reset`, `"sim_day": 1`, `"level": 3`, `"sim_day": 0`, `"elapsed_days": 0`, `"level": 5`, `"running": false`, `"days_per_sec": 2`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q in %s", want, out.String())
+		}
+	}
+	snapshot := s.Snapshot()
+	if snapshot.SimDay != 0 || snapshot.Running || snapshot.Nodes[0].Level != 5 || snapshot.Nodes[1].Level != 1 {
+		t.Fatalf("reset: %+v", snapshot)
 	}
 }

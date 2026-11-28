@@ -68,6 +68,63 @@ func TestStepScheduleAndNegativeLevel(t *testing.T) {
 	}
 }
 
+func TestReset(t *testing.T) {
+	cfg := testConfig()
+	cfg.Nodes[0].Level = math.MaxInt64
+	cfg.Nodes[1].Level = math.MinInt64
+	cfg.Links[0].Magnitude = math.MaxInt64
+	cfg.Links[0].ScheduleDay = 1
+	s, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, ch := s.Subscribe()
+	defer s.Unsubscribe(ch)
+	if _, events, err := s.Step(3); err != nil || len(events) != 5 {
+		t.Fatalf("step: %+v %v", events, err)
+	}
+	if err := s.Play(20); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := s.Reset()
+	if snapshot.SimDay != 0 || snapshot.ElapsedDays != 0 || snapshot.Running || snapshot.DaysPerSec != 20 ||
+		snapshot.Nodes[0].Level != math.MaxInt64 || snapshot.Nodes[1].Level != math.MinInt64 {
+		t.Fatalf("reset: %+v", snapshot)
+	}
+	for _, want := range []string{"day_tick", "flow_event", "day_tick", "day_tick", "flow_event", "snapshot"} {
+		var event Event
+		select {
+		case event = <-ch:
+		case <-time.After(time.Second):
+			t.Fatalf("timed out waiting for %s", want)
+		}
+		if event.Type != want {
+			t.Fatalf("event: got %+v, want %s", event, want)
+		}
+		if want == "snapshot" && (event.Snapshot == nil || event.Snapshot.SimDay != 0 || event.Snapshot.Nodes[0].Level != math.MaxInt64) {
+			t.Fatalf("reset event: %+v", event)
+		}
+	}
+	time.Sleep(120 * time.Millisecond)
+	if got := s.Snapshot(); got.SimDay != 0 || got.Running {
+		t.Fatalf("playback continued after reset: %+v", got)
+	}
+	select {
+	case event := <-ch:
+		t.Fatalf("unexpected event after reset: %+v", event)
+	default:
+	}
+	after, events, err := s.Step(1)
+	if err != nil || after.SimDay != 1 || after.ElapsedDays != 1 || after.Nodes[0].Level != 0 ||
+		after.Nodes[1].Level != -1 || len(events) != 2 {
+		t.Fatalf("step after reset: %+v %+v %v", after, events, err)
+	}
+	if got := s.Reset(); got.SimDay != 0 || got.Nodes[0].Level != math.MaxInt64 {
+		t.Fatalf("second reset: %+v", got)
+	}
+}
+
 func TestSubscribeAndPlayback(t *testing.T) {
 	s, err := New(testConfig())
 	if err != nil {

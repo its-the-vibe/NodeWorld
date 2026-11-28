@@ -63,6 +63,47 @@ func TestWebSocketSnapshotAndStep(t *testing.T) {
 	}
 }
 
+func TestWebSocketReceivesResetSnapshot(t *testing.T) {
+	s, err := sim.New(config.Config{
+		Nodes:      []config.Node{{ID: "a", Level: 5}, {ID: "b", Level: 1}},
+		Links:      []config.Link{{From: "a", To: "b", Magnitude: 2, ScheduleDay: 1}},
+		Simulation: config.Settings{CycleDays: 2, DaysPerSec: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	handler := New(s)
+	server := httptest.NewServer(handler)
+	defer handler.Close()
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http")+"/ws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+	var event sim.Event
+	if err := wsjson.Read(ctx, conn, &event); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Step(1); err != nil {
+		t.Fatal(err)
+	}
+	s.Reset()
+	for _, want := range []string{"day_tick", "flow_event", "snapshot"} {
+		event = sim.Event{}
+		if err := wsjson.Read(ctx, conn, &event); err != nil || event.Type != want {
+			t.Fatalf("event: %+v, want %s: %v", event, want, err)
+		}
+		if want == "snapshot" && (event.Snapshot == nil || event.Snapshot.SimDay != 0 ||
+			event.Snapshot.Nodes[0].Level != 5 || event.Snapshot.Nodes[1].Level != 1) {
+			t.Fatalf("reset snapshot: %+v", event)
+		}
+	}
+}
+
 func TestLargeStepStreamsAllTicks(t *testing.T) {
 	s, err := sim.New(config.Config{Simulation: config.Settings{CycleDays: 30, DaysPerSec: 1}})
 	if err != nil {
