@@ -13,7 +13,10 @@ go run . --config examples/sample.yaml --ws localhost:8080
 Connect to `ws://localhost:8080/ws`. `--ws` is a TCP listen address, not just a
 port; there is no default port. The server exists only for the lifetime of the
 REPL or headless run (`--days`), so a headless run may finish before a client can
-connect. The implementation uses the WebSocket library's default same-origin
+connect. Add `--serve` (which requires `--ws` and cannot be combined with
+`--days` or `--output`) for a persistent server that ignores stdin and runs
+until SIGINT or SIGTERM; the simulation starts paused and clients can step,
+resume, reset and replay it. The implementation uses the WebSocket library's default same-origin
 verification and has no authentication. Bind to localhost unless access is
 restricted by a trusted network or proxy.
 
