@@ -15,12 +15,13 @@ The simulation starts paused at day 0. Each step advances the day first, then pr
 
 The REPL supports `step [n]`, `play [days_per_sec]`, `pause`, `reset`, `status`, `node <id>` (including outgoing links), `help [command]`, and `quit`. Use `help` to list commands or `help <command>` for details. `step` also works while playing; it does not change the playback state. `reset` restores day 0 and initial node levels, pauses playback, and preserves the current speed. EOF exits the REPL.
 
-With `--ws`, connect to `/ws` using a WebSocket client. The server runs for the lifetime of the REPL (or headless run). It sends `{"type":"snapshot","snapshot":...}` first, then `day_tick` and `flow_event` messages with `sim_day` and, for flows, `from`, `to`, `amount`, `source_level`, and `target_level`. A REPL reset sends a fresh snapshot after any previously queued events. Control messages are JSON:
+With `--ws`, connect to `/ws` using a WebSocket client. The server runs for the lifetime of the REPL (or headless run). It sends `{"type":"snapshot","snapshot":...}` first, then `day_tick` and `flow_event` messages with `sim_day` and, for flows, `from`, `to`, `amount`, `source_level`, and `target_level`. A reset command returns the simulation to day 0, restores initial node levels, pauses playback, and preserves the current speed; all subscribers receive a fresh snapshot after any previously queued events. Control messages are JSON:
 
 ```json
 {"type":"step","days":2}
 {"type":"resume"}
 {"type":"pause"}
+{"type":"reset"}
 {"type":"set_speed","days_per_sec":5}
 ```
 

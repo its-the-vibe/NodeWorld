@@ -63,7 +63,7 @@ func TestWebSocketSnapshotAndStep(t *testing.T) {
 	}
 }
 
-func TestWebSocketReceivesResetSnapshot(t *testing.T) {
+func TestWebSocketResetCommand(t *testing.T) {
 	s, err := sim.New(config.Config{
 		Nodes:      []config.Node{{ID: "a", Level: 5}, {ID: "b", Level: 1}},
 		Links:      []config.Link{{From: "a", To: "b", Magnitude: 2, ScheduleDay: 1}},
@@ -91,7 +91,9 @@ func TestWebSocketReceivesResetSnapshot(t *testing.T) {
 	if _, _, err := s.Step(1); err != nil {
 		t.Fatal(err)
 	}
-	s.Reset()
+	if err := wsjson.Write(ctx, conn, map[string]any{"type": "reset"}); err != nil {
+		t.Fatal(err)
+	}
 	for _, want := range []string{"day_tick", "flow_event", "snapshot"} {
 		event = sim.Event{}
 		if err := wsjson.Read(ctx, conn, &event); err != nil || event.Type != want {

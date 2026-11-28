@@ -94,6 +94,8 @@ func New(s *sim.Simulation) *Server {
 					s.Pause()
 				case "resume":
 					s.Resume()
+				case "reset":
+					s.Reset()
 				case "set_speed":
 					err = s.SetSpeed(command.DaysPerSec)
 				case "step":
