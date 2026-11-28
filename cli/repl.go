@@ -23,6 +23,7 @@ var commandHelp = []struct {
 	{"step", "step [n]", "Advance the simulation by n days.", "n must be a positive integer and defaults to 1. Stepping while playing does not change the playback state."},
 	{"play", "play [days_per_sec]", "Start playback at the specified speed.", "The speed defaults to the current speed and must be between 0.001 and 1000 days per second."},
 	{"pause", "pause", "Pause the simulation.", ""},
+	{"reset", "reset", "Reset the simulation to day 0 and pause playback.", "Node levels return to their initial values; the playback speed is preserved."},
 	{"status", "status", "Display the current simulation status.", ""},
 	{"node", "node <id>", "Display node information and outgoing links.", "id is the ID of an existing node."},
 	{"quit", "quit", "Exit the REPL.", ""},
@@ -77,6 +78,12 @@ func Run(s *sim.Simulation, in io.Reader, out io.Writer) error {
 				err = fmt.Errorf("usage: pause")
 			} else {
 				s.Pause()
+			}
+		case "reset":
+			if len(args) != 1 {
+				err = fmt.Errorf("usage: reset")
+			} else {
+				err = printJSON(out, s.Reset())
 			}
 		case "play":
 			speed := s.Snapshot().DaysPerSec

@@ -41,15 +41,23 @@ type scheduledRequest struct {
 	reply chan []config.Link
 }
 
+type resetRequest struct {
+	reply chan config.Node
+}
+
 type nodeActor struct {
-	node  config.Node
-	links []config.Link
+	node         config.Node
+	initialLevel int64
+	links        []config.Link
 }
 
 func (n *nodeActor) Receive(ctx *actor.Context) {
 	switch m := ctx.Message().(type) {
 	case nodeRequest:
 		n.node.Level += m.delta
+		m.reply <- n.node
+	case resetRequest:
+		n.node.Level = n.initialLevel
 		m.reply <- n.node
 	case scheduledRequest:
 		var links []config.Link
@@ -224,6 +232,17 @@ func (c *coordinator) Receive(ctx *actor.Context) {
 		case "pause":
 			c.running = false
 			c.schedule(ctx.PID())
+		case "reset":
+			c.running = false
+			c.schedule(ctx.PID())
+			c.day, c.elapsed = 0, 0
+			for _, id := range c.order {
+				reply := make(chan config.Node, 1)
+				c.engine.Send(c.nodes[id], resetRequest{reply})
+				<-reply
+			}
+			r.snapshot = c.snapshot()
+			c.publish(Event{Type: "snapshot", Snapshot: &r.snapshot})
 		case "close":
 			c.running = false
 			c.schedule(ctx.PID())
@@ -258,7 +277,9 @@ func New(cfg config.Config) (*Simulation, error) {
 	}
 	for _, node := range cfg.Nodes {
 		n := node
-		pid := engine.Spawn(func() actor.Receiver { return &nodeActor{node: n, links: outgoing[n.ID]} }, "node", actor.WithID(n.ID))
+		pid := engine.Spawn(func() actor.Receiver {
+			return &nodeActor{node: n, initialLevel: n.Level, links: outgoing[n.ID]}
+		}, "node", actor.WithID(n.ID))
 		c.nodes[n.ID] = pid
 		c.order = append(c.order, n.ID)
 		s.nodes = append(s.nodes, pid)
@@ -286,6 +307,9 @@ func (s *Simulation) SetSpeed(speed float64) error {
 }
 func (s *Simulation) Resume() { s.call(command{action: "resume"}) }
 func (s *Simulation) Pause()  { s.call(command{action: "pause"}) }
+func (s *Simulation) Reset() Snapshot {
+	return s.call(command{action: "reset"}).snapshot
+}
 func (s *Simulation) Subscribe() (Snapshot, chan Event) {
 	ch := make(chan Event, 256)
 	r := s.call(command{action: "subscribe", sub: ch})
