@@ -1,5 +1,7 @@
 # NodeWorld
 
+[![CI](https://github.com/its-the-vibe/NodeWorld/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/its-the-vibe/NodeWorld/actions/workflows/ci.yaml)
+
 NodeWorld is a local actor-based timed flow graph simulator. It requires Go 1.27.4 or later.
 
 ```sh
